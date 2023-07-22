@@ -1,4 +1,4 @@
-# plugins-jira-sonarqube
+# sonarqube-jira-issues-manager
 
 Simple scripting to manage connectivity between Jira and SonarQube. As new issues are created in SonarQube, this script will identify the new issue(s), check Jira whether a ticket exists in Jira for the SonarQube issue, and if not, creates the ticket in Jira. This script can also scan SonarQube for closed issues which likely have an open Jira ticket, comment in the Jira ticket and then close the Jira ticket.
 
