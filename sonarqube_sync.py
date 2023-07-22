@@ -142,11 +142,6 @@ class SonarQubeSync(object):
         if len(response.json()["issues"]) == 0:
             return False
         else:
-            # Parse the response JSON
-            data = response.json()
-            # Print out each issue key and summary
-            # for issue in data['issues']:
-            #     print(f"Issue Key: {issue['key']}, Summary: {issue['fields']['summary']}")
             return True
 
     # Updates Jira tickets when SonarQube issues are closed
