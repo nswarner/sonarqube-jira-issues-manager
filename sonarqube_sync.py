@@ -48,6 +48,10 @@ class SonarQubeSync(object):
         response = requests.get(url, headers=headers)
         data_json = response.json()
 
+        return data_json
+
+    def create_and_update_jira_tickets(self):
+        data_json = self.get_project_vulnerabilities()
         for item in data_json["issues"]:
             if item["status"] == "OPEN":
                 # unique key
@@ -141,9 +145,58 @@ class SonarQubeSync(object):
             #     print(f"Issue Key: {issue['key']}, Summary: {issue['fields']['summary']}")
             return True
 
+    def update_jira_issues(self):
+        data_json = self.get_project_vulnerabilities()
+        for item in data_json["issues"]:
+            if item["status"] == "CLOSED":
+                if "done" not in item["tags"]:
+                    self.cleanup_jira_ticket(item["key"], item["hash"])
+                    self.cleanup_sonarqube_issue(item["key"])
+
+    def cleanup_jira_ticket(self, key, hash):
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Basic {self.jira_token}',
+        }
+
+        jql = f'project = {self.project_key} AND description ~ "{key}:{hash}"'
+        payload = {'jql': jql}
+        response = requests.post(f'{self.jira_url}/rest/api/3/search', headers=headers, data=json.dumps(payload))
+
+        issues = response.json()['issues']
+        if (len(issues) > 0):
+            for issue in issues:
+                issue_key = issue['key']
+
+                # 2. Transition the issue to closed
+                # Note: The id for the 'Close' transition can vary, check it in your Jira instance
+                transition_payload = {'transition': {'id': '31'}}
+                response = requests.post(f'{self.jira_url}/rest/api/3/issue/{issue_key}/transitions', headers=headers, data=json.dumps(transition_payload))
+                response.raise_for_status()
+
+                # 3. Add a comment to the issue
+                comment_payload = {'body': 'Closing this issue as per the latest update.'}
+                response = requests.post(f'{self.jira_url}/rest/api/3/issue/{issue_key}/comment', headers=headers, data=json.dumps(comment_payload))
+                response.raise_for_status()
+        else:
+            print("Unable to find Jira ticket for {}:{}.".format(key, hash))
+
+    def cleanup_sonarqube_issue(self, key):
+        url = f"{self.sonarqube_url}/api/issues/set_tags"
+        headers = {"Authorization": f"Basic {self.sonarqube_token}", 
+                   "Accept": "application/json"}
+
+        data = {
+            "issue": key,
+            "tags": "done",
+        }
+
+        response = requests.post(url, headers=headers, data=data)
+        return response.status_code
+
 
 if __name__ == "__main__":
     sonarqube_sync = SonarQubeSync()
     vulnerabilities = sonarqube_sync.get_project_vulnerabilities()
-    # print(vulnerabilities)
-    # outcome = sonarqube_sync.create_jira_ticket("BS", "Test Summary", "Test Description", "Bug")
+    print(vulnerabilities)
