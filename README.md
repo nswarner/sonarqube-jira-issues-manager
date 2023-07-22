@@ -18,3 +18,17 @@ Simple scripting to manage connectivity between Jira and SonarQube. As new issue
   + Search for an associated Jira ticket,
     -  If a Jira ticket exists: (1) Reopen the ticket, (2) Add a new comment indicating it's reopened, (3) Add the label `sonarqube_regression` to the Jira ticket
     -  If a Jira ticket does not exist: (1) Create the ticket, (2) Label the ticket `sonarqube_review`, (3) Add a new comment indicating a ticket may be missing
+
+# Simplicity
+
+## SonarQube
+
+All function definitions which access the SonarQube API start with `sq_`.
+
+## Jira
+
+All function definitions which access the Jira API start with `jira_`.
+
+## Non-SQ-Jira logic
+
+All other function definitions should have reasonable names.

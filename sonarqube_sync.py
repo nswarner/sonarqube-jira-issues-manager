@@ -40,7 +40,8 @@ class SonarQubeSync(object):
     def __del__(self):
         pass
 
-    def get_project_vulnerabilities(self):
+    # Gets all vulnerabilities for a project
+    def sq_get_project_vulnerabilities(self):
         url = f"{self.sonarqube_url}/api/issues/search?types=VULNERABILITY"
         headers = {"Authorization": f"Basic {self.sonarqube_token}", 
                    "Accept": "application/json"}
@@ -50,6 +51,7 @@ class SonarQubeSync(object):
 
         return data_json
 
+    # Determines whether to create or update Jira tickets
     def create_and_update_jira_tickets(self):
         data_json = self.get_project_vulnerabilities()
         for item in data_json["issues"]:
@@ -74,15 +76,16 @@ class SonarQubeSync(object):
                 description = f"Rule: {rule}\nAuthor: {author}\nSeverity: {severity}\nComponent: {component}\nStart Line: {start_line}\nEnd Line: {end_line}\nMessage: {message}\nUniqueRef: {key}:{hash}"
 
                 # check if already exists in Jira
-                if self.ticket_already_exists(key, hash):
+                if self.jira_ticket_already_exists(key, hash):
                     print(f"Ticket already exists, {key}:{hash}")
                 else:
                     print("Creating ticket, {}:{}.".format(key, hash))
-                    self.create_jira_ticket("BS", project, description, "Task")
+                    self.jira_create_jira_ticket("BS", project, description, "Task")
 
         return data_json
 
-    def create_jira_ticket(self, project_key, summary, description, issue_type):
+    # Creates a Jira ticket
+    def jira_create_jira_ticket(self, project_key, summary, description, issue_type):
         url = self.jira_url + "/rest/api/2/issue"
 
         headers = {
@@ -111,7 +114,8 @@ class SonarQubeSync(object):
             print(f"Failed to create Jira ticket. Status code: {response.status_code}")
             return None
 
-    def ticket_already_exists(self, key, hash):
+    # Boolean to check whether a ticket already exists
+    def jira_ticket_already_exists(self, key, hash):
 
         url = self.jira_url + "/rest/api/3/search"
         description = f"{key}:{hash}"
@@ -145,15 +149,17 @@ class SonarQubeSync(object):
             #     print(f"Issue Key: {issue['key']}, Summary: {issue['fields']['summary']}")
             return True
 
-    def update_jira_issues(self):
-        data_json = self.get_project_vulnerabilities()
+    # Updates Jira tickets when SonarQube issues are closed
+    def update_issues(self):
+        data_json = self.sq_get_project_vulnerabilities()
         for item in data_json["issues"]:
             if item["status"] == "CLOSED":
                 if "done" not in item["tags"]:
-                    self.cleanup_jira_ticket(item["key"], item["hash"])
-                    self.cleanup_sonarqube_issue(item["key"])
+                    self.jira_cleanup_jira_ticket(item["key"], item["hash"])
+                    self.sq_cleanup_sonarqube_issue(item["key"])
 
-    def cleanup_jira_ticket(self, key, hash):
+    # Closes Jira tickets
+    def jira_cleanup_jira_ticket(self, key, hash):
 
         headers = {
             'Content-Type': 'application/json',
@@ -182,7 +188,8 @@ class SonarQubeSync(object):
         else:
             print("Unable to find Jira ticket for {}:{}.".format(key, hash))
 
-    def cleanup_sonarqube_issue(self, key):
+    # Adds a `done` tag to SonarQube issues
+    def sq_cleanup_sonarqube_issue(self, key):
         url = f"{self.sonarqube_url}/api/issues/set_tags"
         headers = {"Authorization": f"Basic {self.sonarqube_token}", 
                    "Accept": "application/json"}
@@ -195,8 +202,33 @@ class SonarQubeSync(object):
         response = requests.post(url, headers=headers, data=data)
         return response.status_code
 
+    # Removes the `done` tag from a SonarQube issue
+    def sq_reset_sonarqube_issue(self, key):
+        url = f"{self.sonarqube_url}/api/issues/tags"
+        headers = {"Authorization": f"Basic {self.sonarqube_token}", 
+                   "Accept": "application/json"}
+
+        # Send GET request to get the current tags of the issue
+        response = requests.get(f"{url}?ps=500", headers=headers)
+
+        # Parse the current tags
+        current_tags = response.json()
+
+        # If the tag to remove is in the current tags, remove it
+        if "done" in current_tags:
+            current_tags.remove("done")
+
+        # Prepare data for the POST request
+        data = {
+            "issue": key,
+            "tags": ','.join(current_tags),
+        }
+
+        # Send POST request to the SonarQube server to update the tags
+        response = requests.post(f"{self.sonarqube_url}/api/issues/set_tags", headers=headers, data=data)
+
 
 if __name__ == "__main__":
     sonarqube_sync = SonarQubeSync()
-    vulnerabilities = sonarqube_sync.get_project_vulnerabilities()
+    vulnerabilities = sonarqube_sync.sq_get_project_vulnerabilities()
     print(vulnerabilities)
