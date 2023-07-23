@@ -107,15 +107,16 @@ class SonarQubeSync(object):
     def create_and_update_jira_tickets(self, project_key=""):
         data_json = self.sq_get_project_vulnerabilities(project_key)
         for item in data_json["issues"]:
-            # print(item['tags'])
             if item["status"] == "CLOSED" and "done" not in item["tags"]:
-                print("Found a fixed issue in SonarQube, {}:{}.".format(item["key"], item["hash"]))
+                print("Status: CLOSED, done not in item tags, handled by update_issues()")
             if item["status"] == "OPEN":
                 if "done" in item["tags"]:
+                    print("Status: OPEN, done in item tags")
                     # assume Jira ticket already exists
                     self.jira_reopen_ticket(item["key"], item["hash"])
                     self.sq_reset_issue(item["key"])
                 else:
+                    print("Status: OPEN, creating Jira ticket")
                     # unique key
                     key = item["key"]
                     rule = item["rule"]
@@ -214,7 +215,11 @@ class SonarQubeSync(object):
                 if "done" not in item["tags"]:
                     self.jira_cleanup_ticket(item["key"], item["hash"])
                     self.sq_cleanup_issue(item["key"], item["tags"])
-
+                else:
+                    print("done tag already exists for {}:{}.".format(item["key"], item["hash"]))
+            else:
+                print("Issue is not closed in SonarQube, {}:{}.".format(item["key"], item["hash"]))
+            
     # Closes Jira tickets
     def jira_cleanup_ticket(self, key, hash):
 
