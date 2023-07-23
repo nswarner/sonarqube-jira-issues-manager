@@ -33,9 +33,15 @@ All function definitions which access the Jira API start with `jira_`.
 
 All other function definitions should have reasonable names.
 
-# Testing
+# Testing workflows
 
-## 
+1. When a new SQ issue exists, create a Jira ticket
+2. When a SQ issue is first `closed`, comment and close the Jira ticket
+  + Tag the SQ issue as `done`
+3. When a SQ issue is reopened, comment and reopen the Jira ticket
+  + Remove the `done` tag from the SQ issue
+  + Add a new tag to the SQ issue, `reopened`
+  + Add a new label to the Jira issue, `sq_regression`
 
 # Useful References
 
