@@ -29,13 +29,13 @@ class SonarQubeSync(object):
             raise Exception("SONARQUBE_URL environment variable is not set.")
             sys.exit(10)
         if self.sonarqube_token is None:
-            raise Exception("SONARQUBE_TOKEN environment variable is not set.")
+            raise Exception("ENCODED_SONAR_TOKEN environment variable is not set.")
             sys.exit(11)
         if self.jira_url is None:
             raise Exception("JIRA_URL environment variable is not set.")
             sys.exit(12)
         if self.jira_token is None:
-            raise Exception("JIRA_TOKEN environment variable is not set.")
+            raise Exception("JIRA_ENCODED_TOKEN environment variable is not set.")
             sys.exit(13)
         print("SonarQube URL: {}".format(self.sonarqube_url))
         if self.disclosure:
