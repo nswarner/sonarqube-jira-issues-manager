@@ -16,8 +16,8 @@ class SonarQubeSync(object):
     jira_token = ""
     project_key = ""
     disclosure = False
-    # Analyze every 1 minute
-    analysis_frequency = 700
+    # Analyze every ~1 minute
+    analysis_frequency = 70
 
     def __init__(self):
         self.sonarqube_url = os.getenv("SONARQUBE_URL")
