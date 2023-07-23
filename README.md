@@ -13,11 +13,10 @@ Simple scripting to manage connectivity between Jira and SonarQube. As new issue
 ## Exception(al) workflows
 
 * When a tagged (`done`) issue in SonarQube is in the `OPEN` status, this script will:
-  + Tag the SonarQube issue as reopened (`reopened`)
   + Remove the SonarQube `done` tag from the SonarQube issue
   + Search for an associated Jira ticket,
-    -  If a Jira ticket exists: (1) Reopen the ticket, (2) Add a new comment indicating it's reopened, (3) Add the label `sonarqube_regression` to the Jira ticket
-    -  If a Jira ticket does not exist: (1) Create the ticket, (2) Label the ticket `sonarqube_review`, (3) Add a new comment indicating a ticket may be missing
+    -  If a Jira ticket exists: (1) Reopen the ticket, (2) Add a new comment indicating it's reopened
+    -  If a Jira ticket does not exist: (1) Create the ticket, (2) Add a new comment indicating a ticket may be missing
 
 # Simplicity
 
@@ -45,13 +44,6 @@ When a new SQ scan happens,
 3. For any SQ issues which are reopened,
   + Comment and reopen the Jira ticket
   + Remove the `done` tag from the SQ issue
-  + Add a new tag to the SQ issue, `sq_regression`
-  + Add a new label to the Jira issue, `sq_regression`
-    - If the label already exists, add a second label, `repeat_regression`
-4. For any SQ issue which are closed but tagged with `sq_regression`,
-  + Remove the `sq_regression` tag from the SQ issue
-  + Tag the SQ issue as `done`
-  + Comment and close the associated Jira ticket
 
 ## Explanation
 
@@ -61,7 +53,6 @@ When a new SQ scan happens,
 * Jira tickets have comments indicating status
 * Jira tickets are searchable based on `{key}:{hash}`
 * Regressions are identified and documented
-* Ongoing regressions are identified and documented
 * SonarQube is the source of truth for the current state
 * The current state is reflected in Jira
 
@@ -82,3 +73,4 @@ When a new SQ scan happens,
 1. Identify new issues in SonarQube
 2. Create Jira tickets in Jira
 3. Identify resolved issues in SonarQube
+4. Regressions reopen tickets in Jira with comment
