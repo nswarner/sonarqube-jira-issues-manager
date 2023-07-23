@@ -80,12 +80,12 @@ class SonarQubeSync(object):
                     print(f"Ticket already exists, {key}:{hash}")
                 else:
                     print("Creating ticket, {}:{}.".format(key, hash))
-                    self.jira_create_jira_ticket("BS", project, description, "Task")
+                    self.jira_create_ticket("BS", project, description, "Task")
 
         return data_json
 
     # Creates a Jira ticket
-    def jira_create_jira_ticket(self, project_key, summary, description, issue_type):
+    def jira_create_ticket(self, project_key, summary, description, issue_type):
         url = self.jira_url + "/rest/api/2/issue"
 
         headers = {
@@ -150,11 +150,11 @@ class SonarQubeSync(object):
         for item in data_json["issues"]:
             if item["status"] == "CLOSED":
                 if "done" not in item["tags"]:
-                    self.jira_cleanup_jira_ticket(item["key"], item["hash"])
-                    self.sq_cleanup_sonarqube_issue(item["key"])
+                    self.jira_cleanup_ticket(item["key"], item["hash"])
+                    self.sq_cleanup_issue(item["key"])
 
     # Closes Jira tickets
-    def jira_cleanup_jira_ticket(self, key, hash):
+    def jira_cleanup_ticket(self, key, hash):
 
         headers = {
             'Content-Type': 'application/json',
@@ -184,7 +184,7 @@ class SonarQubeSync(object):
             print("Unable to find Jira ticket for {}:{}.".format(key, hash))
 
     # Adds a `done` tag to SonarQube issues
-    def sq_cleanup_sonarqube_issue(self, key):
+    def sq_cleanup_issue(self, key):
         url = f"{self.sonarqube_url}/api/issues/set_tags"
         headers = {"Authorization": f"Basic {self.sonarqube_token}", 
                    "Accept": "application/json"}
@@ -198,7 +198,7 @@ class SonarQubeSync(object):
         return response.status_code
 
     # Removes the `done` tag from a SonarQube issue
-    def sq_reset_sonarqube_issue(self, key):
+    def sq_reset_issue(self, key):
         url = f"{self.sonarqube_url}/api/issues/tags"
         headers = {"Authorization": f"Basic {self.sonarqube_token}", 
                    "Accept": "application/json"}
