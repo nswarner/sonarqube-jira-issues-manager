@@ -35,13 +35,35 @@ All other function definitions should have reasonable names.
 
 # Testing workflows
 
-1. When a new SQ issue exists, create a Jira ticket
-2. When a SQ issue is first `closed`, comment and close the Jira ticket
+When a new SQ scan happens,
+
+1. Find any new SQ issues that don't have tags,
+  + Create a Jira ticket uniquely identifying the issue by `{key}:{hash}`
+2. For any SQ issues which are `closed` but untagged,
+  + Comment and close the associated Jira ticket
   + Tag the SQ issue as `done`
-3. When a SQ issue is reopened, comment and reopen the Jira ticket
+3. For any SQ issues which are reopened,
+  + Comment and reopen the Jira ticket
   + Remove the `done` tag from the SQ issue
-  + Add a new tag to the SQ issue, `reopened`
+  + Add a new tag to the SQ issue, `sq_regression`
   + Add a new label to the Jira issue, `sq_regression`
+    - If the label already exists, add a second label, `repeat_regression`
+4. For any SQ issue which are closed but tagged with `sq_regression`,
+  + Remove the `sq_regression` tag from the SQ issue
+  + Tag the SQ issue as `done`
+  + Comment and close the associated Jira ticket
+
+## Explanation
+
+* This script only actions after a SonarQube scan completes
+  + The script only actions against the scanned Project
+* New issues create Jira tickets
+* Jira tickets have comments indicating status
+* Jira tickets are searchable based on `{key}:{hash}`
+* Regressions are identified and documented
+* Ongoing regressions are identified and documented
+* SonarQube is the source of truth for the current state
+* The current state is reflected in Jira
 
 # Useful References
 

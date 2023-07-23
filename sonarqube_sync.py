@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
+from datetime import datetime
 import os
 import sys
 import json
+import time
 import requests
 
 
@@ -222,8 +224,74 @@ class SonarQubeSync(object):
         # Send POST request to the SonarQube server to update the tags
         response = requests.post(f"{self.sonarqube_url}/api/issues/set_tags", headers=headers, data=data)
 
+    # Adds a tag to a SonarQube project
+    def sq_set_tag_timestamp_to_project(self, tag):
+        url = f"{self.sonarqube_url}/api/project_tags/set?project=projectName&tags=foo,bar,baz,mumble"
+        headers = {"Authorization": f"Basic {self.sonarqube_token}", 
+                   "Accept": "application/json"}
+
+        # Send GET request to get the current tags of the issue
+        response = requests.get(f"{url}?ps=500", headers=headers)
+
+        # Parse the current tags
+        current_tags = response.json()
+
+        # If the tag to remove is in the current tags, remove it
+        if "done" in current_tags:
+            current_tags.remove("done")
+
+        # Prepare data for the POST request
+        data = {
+            "issue": key,
+            "tags": ','.join(current_tags),
+        }
+
+        # Send POST request to the SonarQube server to update the tags
+        response = requests.post(f"{self.sonarqube_url}/api/issues/set_tags", headers=headers, data=data)
+
+    # Get a list of SonarQube projects and their data
+    def sq_get_projects_data(self):
+        url = f"{self.sonarqube_url}/api/projects/search"
+        headers = {"Authorization": f"Basic {self.sonarqube_token}", 
+                   "Accept": "application/json"}
+
+        response = requests.get(url, headers=headers)
+        projects_json = response.json()['components']
+
+        return projects_json
+
+    def sq_get_last_analysis_time(self, project_key):
+
+        url_analysis = f"{self.sonarqube_url}/api/project_analyses/search?project={project_key}"
+        headers = {"Authorization": f"Basic {self.sonarqube_token}", 
+                   "Accept": "application/json"}
+        response_analysis = requests.get(url_analysis, headers=headers)
+        response_analysis.raise_for_status()
+
+        # Get the analyses for the project
+        analyses = response_analysis.json()['analyses']
+
+        # Check if there are analyses for the project
+        if analyses:
+            # Get the date of the most recent analysis
+            last_analysis_date = analyses[0]['date']
+
+            # Convert to timestamp
+            last_analysis_timestamp = datetime.strptime(last_analysis_date, "%Y-%m-%dT%H:%M:%S%z").timestamp()
+            
+            return last_analysis_timestamp
+
+    def sq_analyze_sonarqube_last_analysis_time(self):
+        projects = self.sq_get_projects_data()
+        for project in projects:
+            project_key = project['key']
+            last_analysis_timestamp = self.sq_get_last_analysis_time(project_key)
+            seconds_ago = time.time() - last_analysis_timestamp
+            print(f"Project {project_key} was last analyzed {seconds_ago} seconds ago.")
+
 
 if __name__ == "__main__":
     sonarqube_sync = SonarQubeSync()
-    vulnerabilities = sonarqube_sync.sq_get_project_vulnerabilities()
-    print(vulnerabilities)
+    # vulnerabilities = sonarqube_sync.sq_get_project_vulnerabilities()
+    # print(vulnerabilities)
+    sonarqube_sync.sq_analyze_sonarqube_last_analysis_time()
