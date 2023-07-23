@@ -76,3 +76,9 @@ When a new SQ scan happens,
 
 * How to create the SonarQube Token for Basic Authentication
   + `echo -n API_TOKEN | base64`
+
+# Current State
+
+1. Identify new issues in SonarQube
+2. Create Jira tickets in Jira
+3. Identify resolved issues in SonarQube

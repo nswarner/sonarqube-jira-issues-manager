@@ -58,39 +58,91 @@ class SonarQubeSync(object):
 
         return data_json
 
+    def jira_reopen_ticket(self, key, hash):
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Basic {self.jira_token}',
+        }
+
+        jql = f'project = {self.project_key} AND description ~ "{key}:{hash}"'
+        payload = {'jql': jql}
+        response = requests.post(f'{self.jira_url}/rest/api/3/search', headers=headers, data=json.dumps(payload))
+
+        issues = response.json()['issues']
+        if (len(issues) > 0):
+            for issue in issues:
+                issue_key = issue['key']
+
+                # 2. Transition the issue to open
+                # Note: The id for the 'Open' transition can vary, check it in your Jira instance
+                transition_payload = {'transition': {'id': '11'}}
+                response = requests.post(f'{self.jira_url}/rest/api/3/issue/{issue_key}/transitions', headers=headers, data=json.dumps(transition_payload))
+                response.raise_for_status()
+
+                # 3. Add a comment to the issue
+                comment = "Issue has been reopened in SonarQube. This is a regression."
+
+                # The payload for adding a comment - note that the comment is in a "body" object
+                payload = {
+                    "body": {
+                        "type": "doc",
+                        "version": 1,
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "text": comment,
+                                        "type": "text"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+                response = requests.post(f'{self.jira_url}/rest/api/3/issue/{issue_key}/comment', headers=headers, data=json.dumps(payload))
+                response.raise_for_status()
+
+
+
     # Determines whether to create or update Jira tickets
     def create_and_update_jira_tickets(self, project_key=""):
         data_json = self.sq_get_project_vulnerabilities(project_key)
         for item in data_json["issues"]:
-            print(item['tags'])
+            # print(item['tags'])
             if item["status"] == "CLOSED" and "done" not in item["tags"]:
                 print("Found a fixed issue in SonarQube, {}:{}.".format(item["key"], item["hash"]))
             if item["status"] == "OPEN":
-                # unique key
-                key = item["key"]
-                rule = item["rule"]
-                author = item["author"]
-                project = item["project"] + ": " + rule + " - " + key
-                severity = item["severity"]
-                # filename
-                component = item["component"]
-                # start line
-                start_line = item["textRange"]["startLine"]
-                # end line
-                end_line = item["textRange"]["endLine"]
-                # unique hash
-                hash = item["hash"]
-                # issue description
-                message = item["message"]
-
-                description = f"Rule: {rule}\nAuthor: {author}\nSeverity: {severity}\nComponent: {component}\nStart Line: {start_line}\nEnd Line: {end_line}\nMessage: {message}\nUniqueRef: {key}:{hash}"
-
-                # check if already exists in Jira
-                if self.jira_ticket_already_exists(key, hash):
-                    print(f"Ticket already exists, {key}:{hash}")
+                if "done" in item["tags"]:
+                    # assume Jira ticket already exists
+                    self.jira_reopen_ticket(item["key"], item["hash"])
+                    self.sq_reset_issue(item["key"])
                 else:
-                    print("Creating ticket, {}:{}.".format(key, hash))
-                    self.jira_create_ticket("BS", project, description, "Task")
+                    # unique key
+                    key = item["key"]
+                    rule = item["rule"]
+                    author = item["author"]
+                    project = item["project"] + ": " + rule + " - " + key
+                    severity = item["severity"]
+                    # filename
+                    component = item["component"]
+                    # start line
+                    start_line = item["textRange"]["startLine"]
+                    # end line
+                    end_line = item["textRange"]["endLine"]
+                    # unique hash
+                    hash = item["hash"]
+                    # issue description
+                    message = item["message"]
+
+                    description = f"Rule: {rule}\nAuthor: {author}\nSeverity: {severity}\nComponent: {component}\nStart Line: {start_line}\nEnd Line: {end_line}\nMessage: {message}\nUniqueRef: {key}:{hash}"
+
+                    # check if already exists in Jira
+                    if self.jira_ticket_already_exists(key, hash):
+                        print(f"Ticket already exists, {key}:{hash}")
+                    else:
+                        print("Creating ticket, {}:{}.".format(key, hash))
+                        self.jira_create_ticket("BS", project, description, "Task")
 
         self.update_issues(project_key)
 
@@ -163,7 +215,7 @@ class SonarQubeSync(object):
             if item["status"] == "CLOSED":
                 if "done" not in item["tags"]:
                     self.jira_cleanup_ticket(item["key"], item["hash"])
-                    self.sq_cleanup_issue(item["key"])
+                    self.sq_cleanup_issue(item["key"], item["tags"])
 
     # Closes Jira tickets
     def jira_cleanup_ticket(self, key, hash):
@@ -189,21 +241,42 @@ class SonarQubeSync(object):
                 response.raise_for_status()
 
                 # 3. Add a comment to the issue
-                comment_payload = {'body': 'Closing this issue as per the latest update.'}
-                response = requests.post(f'{self.jira_url}/rest/api/3/issue/{issue_key}/comment', headers=headers, data=json.dumps(comment_payload))
+                comment = "Issue has been resolved in SonarQube."
+
+                # The payload for adding a comment - note that the comment is in a "body" object
+                payload = {
+                    "body": {
+                        "type": "doc",
+                        "version": 1,
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [
+                                    {
+                                        "text": comment,
+                                        "type": "text"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+                response = requests.post(f'{self.jira_url}/rest/api/3/issue/{issue_key}/comment', headers=headers, data=json.dumps(payload))
                 response.raise_for_status()
         else:
             print("Unable to find Jira ticket for {}:{}.".format(key, hash))
 
     # Adds a `done` tag to SonarQube issues
-    def sq_cleanup_issue(self, key):
+    def sq_cleanup_issue(self, key, tags):
         url = f"{self.sonarqube_url}/api/issues/set_tags"
         headers = {"Authorization": f"Basic {self.sonarqube_token}", 
                    "Accept": "application/json"}
 
+        tags.append("done")
+
         data = {
             "issue": key,
-            "tags": "done",
+            "tags": ','.join(tags),
         }
 
         response = requests.post(url, headers=headers, data=data)
@@ -228,7 +301,7 @@ class SonarQubeSync(object):
         # Prepare data for the POST request
         data = {
             "issue": key,
-            "tags": ','.join(current_tags),
+            "tags": current_tags,
         }
 
         # Send POST request to the SonarQube server to update the tags
@@ -282,10 +355,4 @@ class SonarQubeSync(object):
 
 if __name__ == "__main__":
     sonarqube_sync = SonarQubeSync()
-    # vulnerabilities = sonarqube_sync.sq_get_project_vulnerabilities()
-    # print(vulnerabilities)
-    # print("-------------------")
-    # vulnerabilities = sonarqube_sync.sq_get_project_vulnerabilities("sast-3-sonarqube")
-    # print(vulnerabilities)
-    # print("-------------------")
     sonarqube_sync.sq_analyze_sonarqube_last_analysis_time()
