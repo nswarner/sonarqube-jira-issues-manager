@@ -54,6 +54,8 @@ class SonarQubeSync(object):
                    "Accept": "application/json"}
 
         response = requests.get(url, headers=headers)
+        # Raise an exception if the request was unsuccessful
+        response.raise_for_status()
         data_json = response.json()
 
         return data_json
@@ -67,7 +69,8 @@ class SonarQubeSync(object):
         jql = f'project = {self.project_key} AND description ~ "{key}:{hash}"'
         payload = {'jql': jql}
         response = requests.post(f'{self.jira_url}/rest/api/3/search', headers=headers, data=json.dumps(payload))
-
+        # Raise an exception if the request was unsuccessful
+        response.raise_for_status()
         issues = response.json()['issues']
         if (len(issues) > 0):
             for issue in issues:
@@ -170,6 +173,8 @@ class SonarQubeSync(object):
         }
 
         response = requests.post(url, json=data, headers=headers)
+        # Raise an exception if the request was unsuccessful
+        response.raise_for_status()
 
         if response.status_code == 201:
             return response.json()["key"]
@@ -202,6 +207,9 @@ class SonarQubeSync(object):
             data=json.dumps(payload),
         )
 
+        # Raise an exception if the request was unsuccessful
+        response.raise_for_status()
+
         if len(response.json()["issues"]) == 0:
             return False
         else:
@@ -231,6 +239,8 @@ class SonarQubeSync(object):
         jql = f'project = {self.project_key} AND description ~ "{key}:{hash}"'
         payload = {'jql': jql}
         response = requests.post(f'{self.jira_url}/rest/api/3/search', headers=headers, data=json.dumps(payload))
+        # Raise an exception if the request was unsuccessful
+        response.raise_for_status()
 
         issues = response.json()['issues']
         if (len(issues) > 0):
@@ -283,6 +293,8 @@ class SonarQubeSync(object):
         }
 
         response = requests.post(url, headers=headers, data=data)
+        # Raise an exception if the request was unsuccessful
+        response.raise_for_status()
         return response.status_code
 
     # Removes the `done` tag from a SonarQube issue
@@ -293,6 +305,8 @@ class SonarQubeSync(object):
 
         # Send GET request to get the current tags of the issue
         response = requests.get(f"{url}?ps=500", headers=headers)
+        # Raise an exception if the request was unsuccessful
+        response.raise_for_status()
 
         # Parse the current tags
         current_tags = response.json()
@@ -315,6 +329,8 @@ class SonarQubeSync(object):
 
         # Send POST request to the SonarQube server to update the tags
         response = requests.post(f"{self.sonarqube_url}/api/issues/set_tags", headers=headers, data=data)
+        # Raise an exception if the request was unsuccessful
+        response.raise_for_status()
 
     # Get a list of SonarQube projects and their data
     def sq_get_projects_data(self):
@@ -323,6 +339,9 @@ class SonarQubeSync(object):
                    "Accept": "application/json"}
 
         response = requests.get(url, headers=headers)
+        # Raise an exception if the request was unsuccessful
+        response.raise_for_status()
+
         projects_json = response.json()['components']
 
         return projects_json
