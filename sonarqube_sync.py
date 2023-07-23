@@ -103,8 +103,6 @@ class SonarQubeSync(object):
                 response = requests.post(f'{self.jira_url}/rest/api/3/issue/{issue_key}/comment', headers=headers, data=json.dumps(payload))
                 response.raise_for_status()
 
-
-
     # Determines whether to create or update Jira tickets
     def create_and_update_jira_tickets(self, project_key=""):
         data_json = self.sq_get_project_vulnerabilities(project_key)
@@ -294,15 +292,21 @@ class SonarQubeSync(object):
         # Parse the current tags
         current_tags = response.json()
 
+        print(current_tags)
+
         # If the tag to remove is in the current tags, remove it
-        if "done" in current_tags:
-            current_tags.remove("done")
+        if "done" in current_tags['tags']:
+            current_tags['tags'].remove("done")
+
+        print(current_tags)
 
         # Prepare data for the POST request
         data = {
             "issue": key,
-            "tags": current_tags,
+            "tags": ','.join(current_tags['tags']),
         }
+
+        print(data)
 
         # Send POST request to the SonarQube server to update the tags
         response = requests.post(f"{self.sonarqube_url}/api/issues/set_tags", headers=headers, data=data)
